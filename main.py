@@ -3,20 +3,26 @@ import yt_dlp
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-BOT_TOKEN = "8659260396:AAHVelixrAQiqvmfLO1kG4kVCQpAoTx73lo"
+# 🔐 Render environment variable থেকে token নাও
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
+if not BOT_TOKEN:
+    raise ValueError("❌ BOT_TOKEN missing! Render → Environment এ add করো")
+
+# ▶️ Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🚀 PRO Video Downloader Bot\n\n"
-        "YouTube/TikTok link পাঠাও।\n"
-        "Bot direct video send করবে।"
+        "📥 YouTube / TikTok link পাঠাও\n"
+        "Bot direct video send করবে ✅"
     )
 
+# ▶️ Link handle
 async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text.strip()
 
     if not ("youtube.com" in url or "youtu.be" in url or "tiktok.com" in url):
-        await update.message.reply_text("❌ YouTube/TikTok link পাঠাও।")
+        await update.message.reply_text("❌ Valid YouTube/TikTok link পাঠাও")
         return
 
     msg = await update.message.reply_text("⏳ Download হচ্ছে...")
@@ -28,14 +34,13 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "outtmpl": "downloads/%(id)s.%(ext)s",
             "format": "best[ext=mp4]/best",
             "noplaylist": True,
-            "max_filesize": 45 * 1024 * 1024,
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             file_path = ydl.prepare_filename(info)
 
-        await msg.edit_text("📤 Telegram এ পাঠাচ্ছি...")
+        await msg.edit_text("📤 পাঠানো হচ্ছে...")
 
         with open(file_path, "rb") as video:
             await update.message.reply_video(video=video, caption="✅ Done")
@@ -43,12 +48,16 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         os.remove(file_path)
 
     except Exception as e:
-        await msg.edit_text("❌ Download failed.\n\n" + str(e)[:250])
+        await msg.edit_text("❌ Error:\n" + str(e)[:200])
 
+# ▶️ Main run
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
+
+    print("✅ Bot running...")
     app.run_polling()
 
 if __name__ == "__main__":
